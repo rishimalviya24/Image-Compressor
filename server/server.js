@@ -11,7 +11,6 @@ const fs = require('fs');
 const app = express();
 
 // Middleware
-app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
@@ -19,8 +18,6 @@ app.use('/uploads', express.static('uploads'));
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
-
-const cors = require("cors");
 
 app.use(cors({
   origin: "https://image-compressor-frontend-w0hc.onrender.com/",
