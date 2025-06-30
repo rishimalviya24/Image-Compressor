@@ -20,7 +20,7 @@ if (!fs.existsSync('uploads')) {
 }
 
 app.use(cors({
-  origin: "https://image-compressor-frontend-w0hc.onrender.com/",
+  origin: "https://image-compressor-2-khpp.onrender.com",
   credentials: true,
 }));
 
