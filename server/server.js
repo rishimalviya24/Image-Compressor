@@ -20,6 +20,14 @@ if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
 
+const cors = require("cors");
+
+app.use(cors({
+  origin: "https://image-compressor-frontend-w0hc.onrender.com/",
+  credentials: true,
+}));
+
+
 // MongoDB Connection
 console.log("MongoDB: Connecting...");
 
