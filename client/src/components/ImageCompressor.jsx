@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Upload, Download, FileImage, Zap, Check, AlertCircle, Sparkles, TrendingDown, Clock } from 'lucide-react';
 
-const API_BASE = 'https://image-compressor-2-khpp.onrender.com/api';
+const API_BASE = 'https://image-compressor-1-7eda.onrender.com';
 
 const ImageCompressor = () => {
   const [selectedFile, setSelectedFile] = useState(null);
