@@ -22,7 +22,7 @@ if (!fs.existsSync('uploads')) {
 
 // CORS
 app.use(cors({
-  origin: "http://localhost:5173", // ✅ Frontend domain
+  origin: "https://image-compressor-uonh.onrender.com", // ✅ Frontend domain
   credentials: true,
 }));
 
