@@ -1,33 +1,36 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const multer = require('multer');
-const cors = require('cors');
-const sharp = require('sharp');
-const axios = require('axios');
-const path = require('path');
-const fs = require('fs');
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const multer = require("multer");
+const cors = require("cors");
+const sharp = require("sharp");
+const axios = require("axios");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
 
 // Middleware
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+app.use("/uploads", express.static("uploads"));
 
 // Ensure uploads directory exists
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads");
 }
 
 // CORS
-app.use(cors({
-  origin: "https://image-compressor-2-khpp.onrender.com", // ✅ Frontend domain
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "https://image-compressor-2-khpp.onrender.com", // ✅ Frontend domain
+    credentials: true,
+  })
+);
 
 // MongoDB Connection
 console.log("MongoDB: Connecting...");
-mongoose.connect(process.env.MONGODB_URI)
+mongoose
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
@@ -40,25 +43,25 @@ const imageSchema = new mongoose.Schema({
   originalPath: String,
   compressedPath: String,
   aiRegions: Array,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
-const Image = mongoose.model('Image', imageSchema);
+const Image = mongoose.model("Image", imageSchema);
 
 // Multer config
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'original-' + uniqueSuffix + path.extname(file.originalname));
-  }
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "original-" + uniqueSuffix + path.extname(file.originalname));
+  },
 });
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Only image files are allowed!'), false);
-  }
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed!"), false);
+  },
 });
 
 // AI Region Detection
@@ -66,19 +69,19 @@ async function detectRegions(imagePath) {
   try {
     const imageBuffer = fs.readFileSync(imagePath);
     const response = await axios.post(
-      'https://api-inference.huggingface.co/models/facebook/detr-resnet-50',
+      "https://api-inference.huggingface.co/models/facebook/detr-resnet-50",
       imageBuffer,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
-          'Content-Type': 'application/octet-stream',
+          Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
+          "Content-Type": "application/octet-stream",
         },
-        timeout: 30000
+        timeout: 30000,
       }
     );
     return response.data;
   } catch (error) {
-    console.error('AI region detection error:', error.message);
+    console.error("AI region detection error:", error.message);
     return [];
   }
 }
@@ -89,31 +92,38 @@ async function adaptiveCompress(imagePath, regions = []) {
     const image = sharp(imagePath);
     const metadata = await image.metadata();
     let quality = 80;
-    const importantLabels = ['person', 'face', 'text', 'book', 'laptop', 'cell phone'];
-    const hasImportantRegions = regions.some(region =>
-      importantLabels.some(label =>
-        region.label && region.label.toLowerCase().includes(label)
+    const importantLabels = [
+      "person",
+      "face",
+      "text",
+      "book",
+      "laptop",
+      "cell phone",
+    ];
+    const hasImportantRegions = regions.some((region) =>
+      importantLabels.some(
+        (label) => region.label && region.label.toLowerCase().includes(label)
       )
     );
     if (hasImportantRegions) quality = 90;
     const compressedBuffer = await image
       .jpeg({ quality, progressive: true, mozjpeg: true })
       .toBuffer();
-    const compressedPath = imagePath.replace('original-', 'compressed-');
+    const compressedPath = imagePath.replace("original-", "compressed-");
     await sharp(compressedBuffer).toFile(compressedPath);
     return {
       compressedPath,
       compressedSize: compressedBuffer.length,
-      quality
+      quality,
     };
   } catch (error) {
-    console.error('Compression error:', error);
+    console.error("Compression error:", error);
     throw error;
   }
 }
 
 // ✅ Root Route for browser check
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.send("✅ AI Image Compressor Backend is live!");
 });
 
@@ -145,6 +155,8 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 
     await imageRecord.save();
 
+    const backendBaseUrl = process.env.BACKEND_BASE_URL || `${req.protocol}://${req.get('host')}`;
+
     res.json({
       success: true,
       data: {
@@ -153,8 +165,8 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
         originalSize,
         compressedSize,
         compressionRatio: parseFloat(compressionRatio),
-        originalUrl: `${req.protocol}://${req.get('host')}/${originalPath}`,
-        compressedUrl: `${req.protocol}://${req.get('host')}/${compressedPath}`,
+        originalUrl: `${backendBaseUrl}/${originalPath}`,
+        compressedUrl: `${backendBaseUrl}/${compressedPath}`,
         regions: regions.slice(0, 5),
         quality
       }
@@ -170,44 +182,51 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 // Get image by ID
-app.get('/api/image/:id', async (req, res) => {
+app.get("/api/image/:id", async (req, res) => {
   try {
     const image = await Image.findById(req.params.id);
-    if (!image) return res.status(404).json({ error: 'Image not found' });
+    if (!image) return res.status(404).json({ error: "Image not found" });
 
     res.json({
       success: true,
       data: {
         ...image.toObject(),
-        originalUrl: `${req.protocol}://${req.get('host')}/${image.originalPath}`,
-        compressedUrl: `${req.protocol}://${req.get('host')}/${image.compressedPath}`
-      }
+        originalUrl: `${req.protocol}://${req.get("host")}/${
+          image.originalPath
+        }`,
+        compressedUrl: `${req.protocol}://${req.get("host")}/${
+          image.compressedPath
+        }`,
+      },
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch image details' });
+    res.status(500).json({ error: "Failed to fetch image details" });
   }
 });
 
 // Recent compressions
-app.get('/api/recent', async (req, res) => {
+app.get("/api/recent", async (req, res) => {
   try {
     const images = await Image.find()
       .sort({ createdAt: -1 })
       .limit(10)
-      .select('originalName originalSize compressedSize compressionRatio createdAt');
+      .select(
+        "originalName originalSize compressedSize compressionRatio createdAt"
+      );
 
     res.json({ success: true, data: images });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch recent compressions' });
+    res.status(500).json({ error: "Failed to fetch recent compressions" });
   }
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
     timestamp: new Date().toISOString(),
-    mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+    mongodb:
+      mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
   });
 });
 
