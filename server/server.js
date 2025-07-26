@@ -27,6 +27,7 @@ if (!fs.existsSync('uploads')) {
 // CORS
 app.use(cors({
   origin: ["https://image-compressor-uonh.onrender.com", "http://localhost:5173"],
+  methods: ["GET", "POST"],
   credentials: true,
 }));
 
