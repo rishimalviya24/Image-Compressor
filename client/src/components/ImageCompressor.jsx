@@ -7,7 +7,8 @@ import {
   Star, Trash2, RefreshCw
 } from 'lucide-react';
 
-const API_BASE = 'https://image-compressor-1-vgbf.onrender.com/api';
+// const API_BASE = 'https://image-compressor-1-vgbf.onrender.com/api';
+const API_BASE = 'https://image-compressor-1-nm7g.onrender.com/api';
 
 const ImageCompressor = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -84,42 +85,40 @@ const ImageCompressor = () => {
       handleFileSelect(files);
     }
   }, []);
+// handleFileSelect updated for async race prevention
+const handleFileSelect = (files) => {
+  const validFiles = files.filter(file => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please select valid image files (JPG, PNG, WebP)');
+      return false;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB');
+      return false;
+    }
+    return true;
+  });
 
-  const handleFileSelect = (files) => {
-    const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        setError('Please select valid image files (JPG, PNG, WebP)');
-        return false;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        setError('File size must be less than 10MB');
-        return false;
-      }
-      return true;
-    });
+  if (validFiles.length === 0) return;
 
-    if (validFiles.length === 0) return;
+  setSelectedFiles(validFiles);
+  setBatchMode(validFiles.length > 1);
+  setError(null);
+  setResults([]);
+  setShowComparison(false);
+  setSelectedResultIndex(0);
 
-    setSelectedFiles(validFiles);
-    setBatchMode(validFiles.length > 1);
-    setError(null);
-    setResults([]);
-    setShowComparison(false);
-    setSelectedResultIndex(0);
-    
-    // Create previews
-    const newPreviews = [];
-    validFiles.forEach((file, index) => {
+  const promises = validFiles.map(file => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        newPreviews[index] = e.target.result;
-        if (newPreviews.filter(p => p).length === validFiles.length) {
-          setPreviews(newPreviews);
-        }
-      };
+      reader.onload = (e) => resolve(e.target.result);
       reader.readAsDataURL(file);
     });
-  };
+  });
+
+  Promise.all(promises).then(setPreviews);
+};
+
 
   const handleFileInputChange = (e) => {
     const files = Array.from(e.target.files);
